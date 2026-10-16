@@ -465,6 +465,11 @@ class Traceback:
         stacks: List[Stack] = []
         is_cause = False
 
+        # Ids of exceptions already rendered. A __cause__/__context__ cycle is
+        # legal (stdlib prints each exception once), so without this the chain
+        # walk below loops forever on e.g. A.__context__ = B; B.__cause__ = A.
+        seen_exception_ids: Set[int] = set()
+
         from rich import _IMPORT_CWD
 
         notes: List[str] = getattr(exc_value, "__notes__", None) or []
@@ -481,6 +486,11 @@ class Traceback:
                 return "<exception str() failed>"
 
         while True:
+            if id(exc_value) in seen_exception_ids:
+                # __cause__ / __context__ cycle; every exception is printed once.
+                break
+            seen_exception_ids.add(id(exc_value))
+
             stack = Stack(
                 exc_type=safe_str(exc_type.__name__),
                 exc_value=safe_str(exc_value),

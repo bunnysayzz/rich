@@ -397,3 +397,19 @@ def test_recursive_exception() -> None:
             console.print_exception(show_locals=True)
 
     bar()
+
+
+def test_exception_cause_context_cycle() -> None:
+    """Regression test for https://github.com/Textualize/rich/issues/4238
+
+    A __cause__/__context__ cycle is legal (stdlib prints each exception once),
+    so this must terminate instead of looping forever.
+
+    """
+    first = ValueError("first")
+    second = RuntimeError("second")
+    first.__context__ = second
+    second.__cause__ = first
+
+    trace = Traceback.extract(type(first), first, first.__traceback__)
+    assert [stack.exc_type for stack in trace.stacks] == ["ValueError", "RuntimeError"]
